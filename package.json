@@ -1,6 +1,6 @@
 {
   "name": "viem-inpage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "EIP-1193 provider interface backed by viem client with viem-portal integration",
   "type": "module",
   "main": "./dist/index.js",

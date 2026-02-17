@@ -3,13 +3,13 @@
  *
  * @example
  * ```ts
- * import { createPublicClient, http } from 'viem';
+ * import { createWalletClient, custom } from 'viem';
  * import { createEip1193Provider } from 'viem-inpage';
  *
- * const client = createPublicClient({ transport: http() });
- * const provider = createEip1193Provider(client);
+ * const walletClient = createWalletClient({ transport: custom(window.ethereum) });
+ * const provider = createEip1193Provider(walletClient);
  *
- * // Use as window.ethereum
+ * // Use as window.ethereum or announce with mipd
  * const accounts = await provider.request({ method: 'eth_requestAccounts' });
  * ```
  */
@@ -19,21 +19,46 @@ import type { JsonRpcRequest, JsonRpcResponse, Eip1193ProviderOptions } from "./
 export { type JsonRpcRequest, type JsonRpcResponse, type Eip1193ProviderOptions } from "./types.js";
 
 /**
- * Create an EIP-1193 provider from a viem client
+ * Create an EIP-1193 provider from a viem wallet client
  *
- * @param client - A viem client (PublicClient, WalletClient, etc.)
+ * @param walletClient - A viem WalletClient
  * @param options - Optional custom methods and configuration
  * @returns EIP-1193 compatible provider
+ *
+ * @example
+ * ```ts
+ * import { createWalletClient, custom } from 'viem';
+ * import { createEip1193Provider } from 'viem-inpage';
+ *
+ * const walletClient = createWalletClient({
+ *   transport: custom(window.ethereum),
+ *   chain: mainnet,
+ * });
+ *
+ * const provider = createEip1193Provider(walletClient);
+ *
+ * // Announce with mipd for EIP-6963
+ * import { announceProvider } from 'mipd';
+ * announceProvider({
+ *   info: { name: 'Rainbow', rdns: 'me.rainbow', uuid: '...' },
+ *   provider,
+ * });
+ * ```
  */
 export function createEip1193Provider(
-  client: {
-    chain?: { id: number };
-    account?: { address: string };
-    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  },
+  walletClient: WalletClientLike,
   options?: Eip1193ProviderOptions,
 ): Eip1193Provider {
-  return new Eip1193Provider(client, options);
+  return new Eip1193Provider(walletClient, options);
+}
+
+/**
+ * Minimal wallet client interface
+ */
+interface WalletClientLike {
+  account?: { address: string };
+  chain?: { id: number };
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 }
 
 /**
@@ -63,27 +88,27 @@ export class Eip1193Provider {
   /** Selected address (for wallet clients) */
   selectedAddress?: string;
 
-  private client: {
-    chain?: { id: number };
-    account?: { address: string };
-    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  };
+  private client: WalletClientLike;
   private customHandlers?: Record<string, (params: unknown[]) => Promise<unknown>>;
   private _isConnected = false;
   private _listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
 
-  constructor(
-    client: {
-      chain?: { id: number };
-      account?: { address: string };
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-    },
-    options?: Eip1193ProviderOptions,
-  ) {
+  constructor(client: WalletClientLike, options?: Eip1193ProviderOptions) {
     this.client = client;
     this.customHandlers = options?.custom;
     this.isRainbow = options?.isRainbow ?? true;
     this.isMetaMask = options?.isMetaMask ?? true;
+
+    // Initialize state from client
+    if (client.chain?.id) {
+      this.chainId = `0x${client.chain.id.toString(16)}`;
+      this.networkVersion = client.chain.id.toString();
+    }
+    if (client.account?.address) {
+      this.selectedAddress = client.account.address;
+      this._isConnected = true;
+      this.connected = true;
+    }
   }
 
   private _emit(event: string, ...args: unknown[]): void {

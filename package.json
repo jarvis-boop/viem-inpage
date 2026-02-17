@@ -1,0 +1,77 @@
+{
+  "name": "viem-inpage",
+  "version": "0.1.0",
+  "description": "EIP-1193 provider interface backed by viem client with viem-portal integration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "src": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "zile build",
+    "dev": "zile dev",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint src --fix",
+    "format": "oxfmt src --write",
+    "format:check": "oxfmt src --check",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test",
+    "version": "changeset version",
+    "release": "bun run build && changeset publish",
+    "prepublishOnly": "bun run check && bun run build"
+  },
+  "keywords": [
+    "eip-1193",
+    "ethereum",
+    "provider",
+    "viem",
+    "portal",
+    "inpage",
+    "web3",
+    "browser-extension"
+  ],
+  "author": "jarvis-boop",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jarvis-boop/viem-inpage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jarvis-boop/viem-inpage/issues"
+  },
+  "homepage": "https://github.com/jarvis-boop/viem-inpage#readme",
+  "peerDependencies": {
+    "viem": ">=2.0.0",
+    "viem-portal": ">=0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": {
+      "optional": false
+    },
+    "viem-portal": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@types/bun": "^1.2.3",
+    "oxfmt": "^0.33.0",
+    "oxlint": "^1.48.0",
+    "typescript": "^5.7.3",
+    "viem": "^2.23.0",
+    "viem-portal": "^0.2.2",
+    "zile": "^0.0.21"
+  },
+  "sideEffects": false
+}

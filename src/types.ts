@@ -2,8 +2,6 @@
  * Types for viem-inpage
  */
 
-import type { PortalSchema } from "viem-portal";
-
 /**
  * JSON-RPC request
  */
@@ -34,94 +32,22 @@ export interface JsonRpcError {
 }
 
 /**
- * Inpage events
+ * Custom method handlers
  */
-export interface InpageEvents {
-  accountsChanged: (accounts: string[]) => void;
-  chainChanged: (chainId: string) => void;
-  connect: (info: { chainId: string }) => void;
-  disconnect: () => void;
-  message: (message: { type: string; data: unknown }) => void;
+export interface CustomMethods {
+  [key: string]: (params: unknown[]) => Promise<unknown>;
 }
 
 /**
- * Standard Ethereum RPC methods schema
+ * Options for createEip1193Provider
  */
-export interface EthRpcSchema {
-  eth_request: {
-    params: [method: string, params?: unknown[]];
-    result: unknown;
-  };
-}
-
-/**
- * Default push events schema
- */
-export interface InpagePushSchema {
-  accountsChanged: {
-    params: [accounts: string[]];
-    result: void;
-  };
-  chainChanged: {
-    params: [chainId: string];
-    result: void;
-  };
-  connect: {
-    params: [info: { chainId: string }];
-    result: void;
-  };
-  disconnect: {
-    params: [];
-    result: void;
-  };
-  message: {
-    params: [message: { type: string; data: unknown }];
-    result: void;
-  };
-}
-
-/**
- * Full schema combining RPC and push events
- */
-export type InpageSchema = PortalSchema & EthRpcSchema & InpagePushSchema;
-
-/**
- * InpageProvider options
- */
-export interface InpageOptions<TSchema extends PortalSchema = PortalSchema> {
+export interface Eip1193ProviderOptions {
   /** Custom method handlers */
-  handlers?: TSchema;
+  custom?: CustomMethods;
 
-  /** Chain configuration */
-  chain?: {
-    id: number;
-    name?: string;
-  };
-}
+  /** Whether this is Rainbow */
+  isRainbow?: boolean;
 
-/**
- * Provider detection info for EIP-6963
- */
-export interface ProviderInfo {
-  icon: string;
-  name: string;
-  rdns: string;
-  uuid: string;
-}
-
-/**
- * Create provider options
- */
-export interface CreateProviderOptions {
-  /** Provider name */
-  name?: string;
-
-  /** Provider icon (base64 or URL) */
-  icon?: string;
-
-  /** Reverse domain identifier */
-  rdns?: string;
-
-  /** Unique identifier */
-  uuid?: string;
+  /** Whether this is MetaMask-compatible */
+  isMetaMask?: boolean;
 }

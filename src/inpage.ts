@@ -1,45 +1,47 @@
 /**
- * viem-inpage - EIP-1193 provider interface backed by viem client
- *
- * Provides a simple EIP-1193 provider that forwards requests to a viem client.
- * Built for browser extension environments with viem-portal integration.
- */
-
-import type { PortalClient, PortalSchema } from "viem-portal";
-
-import type { InpageOptions, JsonRpcRequest, JsonRpcResponse } from "./types.js";
-
-export { type InpageOptions, type JsonRpcRequest, type JsonRpcResponse } from "./types.js";
-
-/**
- * Create a viem client configured for inpage (window) communication
- */
-export function createInpageClient<TSchema extends PortalSchema = PortalSchema>(
-  options?: InpageOptions<TSchema>,
-): PortalClient<TSchema> {
-  const { createWindowTransport, createClient } = require("viem-portal");
-  const transport = createWindowTransport();
-  return createClient(transport, { handlers: options?.handlers as never });
-}
-
-/**
- * InpageProvider - EIP-1193 compatible provider
- *
- * Wraps a viem-portal client to provide a standard EIP-1193 interface.
- * Supports both standard Ethereum methods and custom messages.
+ * viem-inpage - EIP-1193 provider from viem client
  *
  * @example
  * ```ts
- * import { createInpageProvider, createInpageClient } from 'viem-inpage';
+ * import { createPublicClient, http } from 'viem';
+ * import { createEip1193Provider } from 'viem-inpage';
  *
- * const client = createInpageClient();
- * const provider = createInpageProvider(client);
+ * const client = createPublicClient({ transport: http() });
+ * const provider = createEip1193Provider(client);
  *
  * // Use as window.ethereum
  * const accounts = await provider.request({ method: 'eth_requestAccounts' });
  * ```
  */
-export class InpageProvider {
+
+import type { JsonRpcRequest, JsonRpcResponse, Eip1193ProviderOptions } from "./types.js";
+
+export { type JsonRpcRequest, type JsonRpcResponse, type Eip1193ProviderOptions } from "./types.js";
+
+/**
+ * Create an EIP-1193 provider from a viem client
+ *
+ * @param client - A viem client (PublicClient, WalletClient, etc.)
+ * @param options - Optional custom methods and configuration
+ * @returns EIP-1193 compatible provider
+ */
+export function createEip1193Provider(
+  client: {
+    chain?: { id: number };
+    account?: { address: string };
+    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  },
+  options?: Eip1193ProviderOptions,
+): Eip1193Provider {
+  return new Eip1193Provider(client, options);
+}
+
+/**
+ * EIP-1193 compatible provider
+ *
+ * Wraps a viem client to provide a standard EIP-1193 interface.
+ */
+export class Eip1193Provider {
   /** Current chain ID */
   chainId?: string;
 
@@ -58,45 +60,30 @@ export class InpageProvider {
   /** Network version */
   networkVersion = "1";
 
-  /** Selected address */
+  /** Selected address (for wallet clients) */
   selectedAddress?: string;
 
-  private client: PortalClient<PortalSchema>;
+  private client: {
+    chain?: { id: number };
+    account?: { address: string };
+    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  };
+  private customHandlers?: Record<string, (params: unknown[]) => Promise<unknown>>;
   private _isConnected = false;
   private _listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
 
-  constructor(client: PortalClient<PortalSchema>) {
+  constructor(
+    client: {
+      chain?: { id: number };
+      account?: { address: string };
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+    },
+    options?: Eip1193ProviderOptions,
+  ) {
     this.client = client;
-    this.setupEventListeners();
-  }
-
-  private setupEventListeners() {
-    // Subscribe to push events from background
-    this.client.subscribe("accountsChanged", (data: unknown) => {
-      const accounts = data as string[];
-      this.selectedAddress = accounts[0];
-      this._isConnected = accounts.length > 0;
-      this._emit("accountsChanged", accounts);
-    });
-
-    this.client.subscribe("chainChanged", (data: unknown) => {
-      const chainId = data as string;
-      this.chainId = chainId;
-      this.networkVersion = parseInt(chainId, 16).toString();
-      this._emit("chainChanged", chainId);
-    });
-
-    this.client.subscribe("disconnect", () => {
-      this.selectedAddress = undefined;
-      this._isConnected = false;
-      this._emit("accountsChanged", []);
-      this._emit("disconnect", []);
-    });
-
-    this.client.subscribe("connect", (data: unknown) => {
-      this._isConnected = true;
-      this._emit("connect", data);
-    });
+    this.customHandlers = options?.custom;
+    this.isRainbow = options?.isRainbow ?? true;
+    this.isMetaMask = options?.isMetaMask ?? true;
   }
 
   private _emit(event: string, ...args: unknown[]): void {
@@ -107,25 +94,50 @@ export class InpageProvider {
    * Request method - EIP-1193 standard
    */
   async request(args: { method: string; params?: unknown[] }): Promise<unknown> {
-    const { method, params } = args;
+    const { method, params = [] } = args;
 
-    const result = await this.client.request("eth_request", method, params);
-
-    // Update internal state for certain methods
-    if (method === "eth_requestAccounts" && Array.isArray(result)) {
-      this.selectedAddress = result[0] as string | undefined;
-      this._isConnected = true;
-      this.connected = true;
-    } else if (method === "eth_chainId" && typeof result === "string") {
-      this.chainId = result;
-      this.networkVersion = parseInt(result, 16).toString();
+    // Handle custom methods first
+    if (this.customHandlers?.[method]) {
+      return this.customHandlers[method](params);
     }
 
-    return result;
+    // Standard Ethereum methods
+    switch (method) {
+      case "eth_chainId":
+        return this.client.chain?.id ? `0x${this.client.chain.id.toString(16)}` : "0x1";
+
+      case "eth_accounts": {
+        const account = this.client.account;
+        return account ? [account.address] : [];
+      }
+
+      case "eth_coinbase": {
+        const account = this.client.account;
+        return account?.address ?? null;
+      }
+
+      case "eth_requestAccounts": {
+        const account = this.client.account;
+        if (account) {
+          this._isConnected = true;
+          this.connected = true;
+          this.selectedAddress = account.address;
+          return [account.address];
+        }
+        return [];
+      }
+
+      case "net_version":
+        return this.client.chain?.id?.toString() ?? "1";
+
+      default:
+        // Forward to viem client
+        return this.client.request({ method, params });
+    }
   }
 
   /**
-   * Enable - legacy method, use request({ method: 'eth_requestAccounts' })
+   * Enable - legacy method
    */
   async enable(): Promise<string[]> {
     const result = await this.request({ method: "eth_requestAccounts" });
@@ -182,7 +194,6 @@ export class InpageProvider {
       });
     }
 
-    // If second arg is callback, use sendAsync
     if (typeof paramsOrCallback === "function") {
       return this.sendAsync(methodOrPayload, paramsOrCallback);
     }
@@ -247,11 +258,4 @@ export class InpageProvider {
   listeners(event: string): Array<(...args: unknown[]) => void> {
     return Array.from(this._listeners.get(event) ?? []);
   }
-}
-
-/**
- * Create an InpageProvider from a viem-portal client
- */
-export function createInpageProvider(client: PortalClient<PortalSchema>): InpageProvider {
-  return new InpageProvider(client);
 }

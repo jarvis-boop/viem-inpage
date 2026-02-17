@@ -1,21 +1,15 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from "bun:test";
 
-describe('viem-inpage', () => {
-  it('should export createInpageClient', async () => {
-    const { createInpageClient } = await import('./index.js');
-    expect(createInpageClient).toBeDefined();
-    expect(typeof createInpageClient).toBe('function');
+describe("viem-inpage", () => {
+  it("should export createEip1193Provider", async () => {
+    const { createEip1193Provider } = await import("./index.js");
+    expect(createEip1193Provider).toBeDefined();
+    expect(typeof createEip1193Provider).toBe("function");
   });
 
-  it('should export createInpageProvider', async () => {
-    const { createInpageProvider } = await import('./index.js');
-    expect(createInpageProvider).toBeDefined();
-    expect(typeof createInpageProvider).toBe('function');
-  });
-
-  it('should export InpageProvider class', async () => {
-    const { InpageProvider } = await import('./index.js');
-    expect(InpageProvider).toBeDefined();
-    expect(typeof InpageProvider).toBe('function');
+  it("should export Eip1193Provider class", async () => {
+    const { Eip1193Provider } = await import("./index.js");
+    expect(Eip1193Provider).toBeDefined();
+    expect(typeof Eip1193Provider).toBe("function");
   });
 });

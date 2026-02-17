@@ -1,29 +1,25 @@
 /**
- * viem-inpage - EIP-1193 provider interface backed by viem client
+ * viem-inpage - EIP-1193 provider from viem client
  *
  * @example
  * ```ts
- * import { createInpageProvider, createInpageClient } from 'viem-inpage';
+ * import { createPublicClient, http } from 'viem';
+ * import { createEip1193Provider } from 'viem-inpage';
  *
- * const client = createInpageClient();
- * const provider = createInpageProvider(client);
+ * const client = createPublicClient({ transport: http() });
+ * const provider = createEip1193Provider(client);
  *
  * // Use as window.ethereum
  * const accounts = await provider.request({ method: 'eth_requestAccounts' });
  * ```
  */
 
-export { createInpageClient, createInpageProvider, InpageProvider } from "./inpage.js";
+export { createEip1193Provider, Eip1193Provider } from "./inpage.js";
 
 export type {
-  CreateProviderOptions,
-  EthRpcSchema,
-  InpageEvents,
-  InpageOptions,
-  InpagePushSchema,
-  InpageSchema,
+  CustomMethods,
+  Eip1193ProviderOptions,
   JsonRpcError,
   JsonRpcRequest,
   JsonRpcResponse,
-  ProviderInfo,
 } from "./types.js";
